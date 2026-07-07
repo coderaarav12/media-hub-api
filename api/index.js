@@ -77,6 +77,30 @@ app.get("/api/tv/:id/season/:season", async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+app.get("/api/anime/trending", async (req, res, next) => {
+  try {
+    const { page = 1 } = req.query
+    const graphqlQuery = `query ($p: Int) { Page(page: $p, perPage: 50) { media(sort: TRENDING_DESC, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } format status season } } }`
+    const { data } = await axios.post("https://graphql.anilist.co",
+      { query: graphqlQuery, variables: { p: parseInt(page) } },
+      { timeout: 10000 }
+    )
+    res.json(data.data.Page)
+  } catch (e) { next(e) }
+})
+
+app.get("/api/anime/popular", async (req, res, next) => {
+  try {
+    const { page = 1 } = req.query
+    const graphqlQuery = `query ($p: Int) { Page(page: $p, perPage: 50) { media(sort: POPULARITY_DESC, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } format status season } } }`
+    const { data } = await axios.post("https://graphql.anilist.co",
+      { query: graphqlQuery, variables: { p: parseInt(page) } },
+      { timeout: 10000 }
+    )
+    res.json(data.data.Page)
+  } catch (e) { next(e) }
+})
+
 app.get("/api/anime/search", async (req, res, next) => {
   try {
     const { q, page = 1 } = req.query
@@ -133,7 +157,7 @@ app.get("/api/sources", async (req, res, next) => {
 })
 
 app.use((req, res) => {
-  res.status(404).json({ error: "Not found. Available: /api/search, /api/trending, /api/movie/:id, /api/tv/:id, /api/anime/search, /api/anime/:id, /api/sources" })
+  res.status(404).json({ error: "Not found. Available: /api/search, /api/trending, /api/movie/:id, /api/tv/:id, /api/anime/trending, /api/anime/popular, /api/anime/search, /api/anime/:id, /api/sources" })
 })
 
 app.use((err, req, res, next) => {
