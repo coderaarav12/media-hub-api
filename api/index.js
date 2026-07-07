@@ -10,7 +10,7 @@ const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 })
 
 const tmdbClient = axios.create({
   baseURL: "https://api.themoviedb.org/3",
-  params: { api_key: TMDB_KEY },
+  headers: { Authorization: `Bearer ${TMDB_KEY}` },
   timeout: 15000,
   httpsAgent,
 })
