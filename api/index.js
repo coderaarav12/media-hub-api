@@ -1,7 +1,7 @@
-import express from "express"
-import cors from "cors"
-import axios from "axios"
-import https from "https"
+const express = require("express")
+const cors = require("cors")
+const axios = require("axios")
+const https = require("https")
 
 const app = express()
 const TMDB_KEY = process.env.TMDB_KEY
@@ -138,4 +138,4 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: friendly })
 })
 
-export default app
+module.exports = app

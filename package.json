@@ -1,10 +1,9 @@
 {
   "name": "media-hub-api",
   "version": "1.0.0",
-  "type": "module",
   "dependencies": {
-    "express": "^5.2.1",
-    "axios": "^1.18.1",
+    "express": "^4.21.0",
+    "axios": "^1.7.0",
     "cors": "^2.8.6"
   }
 }
