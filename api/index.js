@@ -34,8 +34,8 @@ const fetchTMDB = async (endpoint, params = {}, retries = 2) => {
 app.use(cors())
 app.use(express.json({ limit: "1mb" }))
 
-app.get("/api", (req, res) => {
-  res.json({ status: "ok", message: "MediaHub API is running. See /api/search?q=, /api/trending, /api/movie/:id, /api/tv/:id, /api/anime/search, /api/sources" })
+app.get(["/", "/api"], (req, res) => {
+  res.json({ status: "ok", message: "MediaHub API is running" })
 })
 
 app.get("/api/search", async (req, res, next) => {
