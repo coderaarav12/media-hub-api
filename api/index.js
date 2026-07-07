@@ -56,6 +56,16 @@ app.get("/api/trending", async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
+app.get("/api/movie/popular", async (req, res, next) => {
+  try { res.json(await fetchTMDB("/movie/popular", { page: req.query.page || 1 })) }
+  catch (e) { next(e) }
+})
+
+app.get("/api/tv/popular", async (req, res, next) => {
+  try { res.json(await fetchTMDB("/tv/popular", { page: req.query.page || 1 })) }
+  catch (e) { next(e) }
+})
+
 app.get("/api/movie/:id", async (req, res, next) => {
   try {
     const data = await fetchTMDB(`/movie/${req.params.id}`, { append_to_response: "credits,videos,similar" })
@@ -157,7 +167,7 @@ app.get("/api/sources", async (req, res, next) => {
 })
 
 app.use((req, res) => {
-  res.status(404).json({ error: "Not found. Available: /api/search, /api/trending, /api/movie/:id, /api/tv/:id, /api/anime/trending, /api/anime/popular, /api/anime/search, /api/anime/:id, /api/sources" })
+  res.status(404).json({ error: "Not found. Available: /api/search, /api/trending, /api/movie/popular, /api/movie/:id, /api/tv/popular, /api/tv/:id, /api/anime/trending, /api/anime/popular, /api/anime/search, /api/anime/:id, /api/sources" })
 })
 
 app.use((err, req, res, next) => {
