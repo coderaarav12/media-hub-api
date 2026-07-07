@@ -6,11 +6,6 @@ import https from "https"
 const app = express()
 const TMDB_KEY = process.env.TMDB_KEY
 
-if (!TMDB_KEY) {
-  console.error("FATAL: TMDB_KEY environment variable not set")
-  process.exit(1)
-}
-
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 })
 
 const tmdbClient = axios.create({
