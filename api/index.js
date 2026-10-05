@@ -1,16 +1,20 @@
-const express = require("express")
-const cors = require("cors")
-const axios = require("axios")
-const https = require("https")
+const express = require('express')
+const cors = require('cors')
+const axios = require('axios')
+const https = require('https')
+const path = require('path')
+
+
 
 const app = express()
-const TMDB_KEY = process.env.TMDB_KEY
+
+const TMDB_KEY = process.env.TMDB_KEY || "8265bd1679663a7ea12ac168da84d2e8"
 
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 })
 
 const tmdbClient = axios.create({
   baseURL: "https://api.themoviedb.org/3",
-  headers: { Authorization: `Bearer ${TMDB_KEY}` },
+  params: { api_key: TMDB_KEY, language: 'en-US' },
   timeout: 15000,
   httpsAgent,
 })
@@ -33,17 +37,13 @@ const fetchTMDB = async (endpoint, params = {}, retries = 2) => {
 
 app.use(cors())
 app.use(express.json({ limit: "1mb" }))
-
-app.get(["/", "/api"], (req, res) => {
-  res.json({ status: "ok", message: "MediaHub API is running" })
-})
+app.get(["/", "/api"], (req, res) => res.json({ status: "ok", message: "MediaHub API is running" }))
 
 app.get("/api/search", async (req, res, next) => {
   try {
     const { q, type = "multi", page = 1 } = req.query
     if (!q) return res.json({ results: [] })
-    const t = type === "multi" ? "movie" : type
-    const data = await fetchTMDB(`/search/${t}`, { query: q, page })
+    const data = await fetchTMDB(`/search/${type}`, { query: q, page })
     res.json({ ...data, results: (data.results || []).filter(r => r.media_type !== "person") })
   } catch (e) { next(e) }
 })
@@ -56,16 +56,6 @@ app.get("/api/trending", async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-app.get("/api/movie/popular", async (req, res, next) => {
-  try { res.json(await fetchTMDB("/movie/popular", { page: req.query.page || 1 })) }
-  catch (e) { next(e) }
-})
-
-app.get("/api/tv/popular", async (req, res, next) => {
-  try { res.json(await fetchTMDB("/tv/popular", { page: req.query.page || 1 })) }
-  catch (e) { next(e) }
-})
-
 app.get("/api/movie/:id", async (req, res, next) => {
   try {
     const data = await fetchTMDB(`/movie/${req.params.id}`, { append_to_response: "credits,videos,similar" })
@@ -75,7 +65,18 @@ app.get("/api/movie/:id", async (req, res, next) => {
 
 app.get("/api/tv/:id", async (req, res, next) => {
   try {
-    const data = await fetchTMDB(`/tv/${req.params.id}`, { append_to_response: "credits,videos,similar" })
+    const data = await fetchTMDB(`/tv/${req.params.id}`, { append_to_response: "credits,aggregate_credits,videos,similar" })
+    res.json(data)
+  } catch (e) { next(e) }
+})
+
+app.get("/api/person/:id", async (req, res, next) => {
+  try {
+    const data = await fetchTMDB(`/person/${req.params.id}`, { append_to_response: "combined_credits" })
+    if (!data.biography) {
+      const fb = await tmdbClient.get(`/person/${req.params.id}`, { params: { api_key: TMDB_KEY } }).then(r=>r.data).catch(()=>null)
+      if (fb && fb.biography) data.biography = fb.biography
+    }
     res.json(data)
   } catch (e) { next(e) }
 })
@@ -87,27 +88,11 @@ app.get("/api/tv/:id/season/:season", async (req, res, next) => {
   } catch (e) { next(e) }
 })
 
-app.get("/api/anime/trending", async (req, res, next) => {
+app.get("/api/imdb/:id", async (req, res, next) => {
   try {
-    const { page = 1 } = req.query
-    const graphqlQuery = `query ($p: Int) { Page(page: $p, perPage: 50) { media(sort: TRENDING_DESC, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } format status season } } }`
-    const { data } = await axios.post("https://graphql.anilist.co",
-      { query: graphqlQuery, variables: { p: parseInt(page) } },
-      { timeout: 10000 }
-    )
-    res.json(data.data.Page)
-  } catch (e) { next(e) }
-})
-
-app.get("/api/anime/popular", async (req, res, next) => {
-  try {
-    const { page = 1 } = req.query
-    const graphqlQuery = `query ($p: Int) { Page(page: $p, perPage: 50) { media(sort: POPULARITY_DESC, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } format status season } } }`
-    const { data } = await axios.post("https://graphql.anilist.co",
-      { query: graphqlQuery, variables: { p: parseInt(page) } },
-      { timeout: 10000 }
-    )
-    res.json(data.data.Page)
+    const response = await fetch(`https://www.omdbapi.com/?i=${req.params.id}&apikey=thewdb`)
+    const data = await response.json()
+    res.json(data)
   } catch (e) { next(e) }
 })
 
@@ -125,7 +110,7 @@ app.get("/api/anime/search", async (req, res, next) => {
 
 app.get("/api/anime/:id", async (req, res, next) => {
   try {
-    const graphqlQuery = `query ($id: Int) { Media(id: $id, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } bannerImage format status season duration studios { nodes { name } } recommendations(perPage: 10) { nodes { mediaRecommendation { id title { romaji } coverImage { large } } } } } }`
+    const graphqlQuery = `query ($id: Int) { Media(id: $id, type: ANIME) { id idMal title { romaji english native } description startDate { year } episodes genres averageScore coverImage { large } bannerImage format status season duration studios { nodes { name } } recommendations(perPage: 10) { nodes { mediaRecommendation { id title { romaji } coverImage { large } } } } characters(sort: ROLE, perPage: 15) { edges { role node { id name { full } image { large } } voiceActors(language: JAPANESE, sort: RELEVANCE) { id name { full } image { large } } } } } }`
     const { data } = await axios.post("https://graphql.anilist.co",
       { query: graphqlQuery, variables: { id: parseInt(req.params.id) } },
       { timeout: 10000, headers: { "Content-Type": "application/json" } }
@@ -145,29 +130,18 @@ app.get("/api/sources", async (req, res, next) => {
       sources.push({ name: "VidSrc Pro", url: `https://vidsrc.su/embed/movie/${id}` })
       sources.push({ name: "VidFast", url: `https://vidfast.pro/movie/${id}?autoPlay=true&theme=2392EE` })
       sources.push({ name: "Videoasy", url: `https://player.videasy.net/movie/${id}?color=2392EE` })
-      sources.push({ name: "2Embed", url: `https://www.2embed.cc/embed/${id}` })
-      sources.push({ name: "Smashy", url: `https://player.smashy.stream/movie/${id}` })
-      sources.push({ name: "Vidify", url: `https://player.vidify.top/embed/movie/${id}` })
     } else if (type === "tv") {
       sources.push({ name: "VidLink", url: `https://vidlink.pro/tv/${id}/${season}/${episode}?primaryColor=2392EE&autoplay=false` })
       sources.push({ name: "VidSrc", url: `https://vidsrc.xyz/embed/tv/${id}/${season}-${episode}` })
       sources.push({ name: "VidSrc Pro", url: `https://vidsrc.su/embed/tv/${id}/${season}/${episode}` })
       sources.push({ name: "VidFast", url: `https://vidfast.pro/tv/${id}/${season}/${episode}?autoPlay=true&theme=2392EE` })
       sources.push({ name: "Videoasy", url: `https://player.videasy.net/tv/${id}/${season}/${episode}?color=2392EE` })
-      sources.push({ name: "2Embed", url: `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}` })
-      sources.push({ name: "Smashy", url: `https://player.smashy.stream/tv/${id}?s=${season}&e=${episode}` })
-      sources.push({ name: "Vidify", url: `https://player.vidify.top/embed/tv/${id}/${season}/${episode}` })
     } else if (type === "anime") {
       sources.push({ name: "ZenIME", url: `https://api.zenime.site/api/stream?id=${id}&server=1&type=sub` })
       sources.push({ name: "VidSrc", url: `https://vidsrc.xyz/embed/movie?tmdb=${id}` })
-      sources.push({ name: "VidLink", url: `https://vidlink.pro/anime/${id}/1/sub` })
     }
     res.json({ sources })
   } catch (e) { next(e) }
-})
-
-app.use((req, res) => {
-  res.status(404).json({ error: "Not found. Available: /api/search, /api/trending, /api/movie/popular, /api/movie/:id, /api/tv/popular, /api/tv/:id, /api/anime/trending, /api/anime/popular, /api/anime/search, /api/anime/:id, /api/sources" })
 })
 
 app.use((err, req, res, next) => {
@@ -180,4 +154,4 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: friendly })
 })
 
-module.exports = app
+module.exports = app;
