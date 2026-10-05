@@ -8,13 +8,14 @@ const path = require('path')
 
 const app = express()
 
-const TMDB_KEY = process.env.TMDB_KEY || "8265bd1679663a7ea12ac168da84d2e8"
+const TMDB_KEY = process.env.TMDB_KEY
 
 const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 })
 
 const tmdbClient = axios.create({
   baseURL: "https://api.themoviedb.org/3",
-  params: { api_key: TMDB_KEY, language: 'en-US' },
+  headers: { Authorization: `Bearer ${TMDB_KEY}` },
+  params: { language: 'en-US' },
   timeout: 15000,
   httpsAgent,
 })
@@ -108,7 +109,7 @@ app.get("/api/person/:id", async (req, res, next) => {
   try {
     const data = await fetchTMDB(`/person/${req.params.id}`, { append_to_response: "combined_credits" })
     if (!data.biography) {
-      const fb = await tmdbClient.get(`/person/${req.params.id}`, { params: { api_key: TMDB_KEY } }).then(r=>r.data).catch(()=>null)
+      const fb = await tmdbClient.get(`/person/${req.params.id}`, { params: { language: undefined } }).then(r=>r.data).catch(()=>null)
       if (fb && fb.biography) data.biography = fb.biography
     }
     res.json(data)
